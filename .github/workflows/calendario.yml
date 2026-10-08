@@ -20,7 +20,7 @@ concurrency:
 jobs:
   sync:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     env:
       ICS_URL: https://calendar.google.com/calendar/ical/465d7b3417589e4d0ff4ac392bcfbbad1d0bd868fbf449b21454e56bce804261%40group.calendar.google.com/public/basic.ics
       DEPLOY_HOOK: ${{ secrets.CLOUDFLARE_DEPLOY_HOOK }}
@@ -58,6 +58,9 @@ jobs:
         if: steps.diff.outputs.changed == 'true' || github.event.schedule == '0 4 * * *' || github.event_name == 'workflow_dispatch'
         run: |
           if [ -z "$DEPLOY_HOOK" ]; then echo "::warning::Falta el secreto CLOUDFLARE_DEPLOY_HOOK"; exit 0; fi
+          # raw.githubusercontent.com sirve el archivo con 5 minutos de caché: se espera a que caduque para que
+          # la build lea el calendario nuevo (en un repo público la espera no gasta minutos).
+          if [ "${{ steps.diff.outputs.changed }}" = 'true' ]; then sleep 330; fi
           curl -fsS -X POST "$DEPLOY_HOOK" > /dev/null
           echo "Despliegue solicitado"
 
