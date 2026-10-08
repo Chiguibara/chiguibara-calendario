@@ -1,0 +1,74 @@
+# Espejo del calendario de ferias de Chigüibara.
+# Cada 15 minutos descarga el calendario público de Google. Si ha cambiado, lo guarda (ferias.ics) y avisa a
+# Cloudflare para que reconstruya la web. Cada madrugada reconstruye igualmente, para retirar las ferias pasadas.
+# Va en un repo PÚBLICO: así GitHub Actions no gasta minutos y la web puede leer ferias.ics sin credenciales.
+name: Calendario de ferias
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+    - cron: '0 4 * * *' # 04:00 UTC: reconstrucción diaria
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: calendario
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      ICS_URL: https://calendar.google.com/calendar/ical/465d7b3417589e4d0ff4ac392bcfbbad1d0bd868fbf449b21454e56bce804261%40group.calendar.google.com/public/basic.ics
+      DEPLOY_HOOK: ${{ secrets.CLOUDFLARE_DEPLOY_HOOK }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Descargar el calendario
+        run: |
+          curl -fsS --retry 4 --retry-delay 20 --retry-all-errors "$ICS_URL" -o nuevo.ics
+          grep -q 'BEGIN:VCALENDAR' nuevo.ics
+
+      - name: ¿Ha cambiado?
+        id: diff
+        run: |
+          # DTSTAMP cambia en cada descarga aunque no se toque nada: no cuenta como cambio.
+          norm() { grep -v '^DTSTAMP' "$1" 2>/dev/null || true; }
+          if [ -f ferias.ics ] && [ "$(norm ferias.ics)" = "$(norm nuevo.ics)" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            rm nuevo.ics
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            mv nuevo.ics ferias.ics
+          fi
+
+      - name: Guardar
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          git config user.name 'calendario-bot'
+          git config user.email 'calendario-bot@users.noreply.github.com'
+          git add ferias.ics
+          git commit -m "Calendario actualizado"
+          git push
+
+      - name: Reconstruir la web
+        if: steps.diff.outputs.changed == 'true' || github.event.schedule == '0 4 * * *' || github.event_name == 'workflow_dispatch'
+        run: |
+          if [ -z "$DEPLOY_HOOK" ]; then echo "::warning::Falta el secreto CLOUDFLARE_DEPLOY_HOOK"; exit 0; fi
+          curl -fsS -X POST "$DEPLOY_HOOK" > /dev/null
+          echo "Despliegue solicitado"
+
+      - name: Mantener activo
+        # GitHub pausa los workflows programados tras 60 días sin commits: uno al mes basta para evitarlo.
+        if: github.event.schedule == '0 4 * * *'
+        run: |
+          if [ "$(date -u +%d)" = "01" ]; then
+            date -u +%Y-%m-%dT%H:%MZ > ultima-comprobacion.txt
+            git config user.name 'calendario-bot'
+            git config user.email 'calendario-bot@users.noreply.github.com'
+            git add ultima-comprobacion.txt
+            if git commit -m "Comprobación mensual"; then git push; fi
+          fi
