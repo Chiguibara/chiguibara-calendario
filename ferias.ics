@@ -1,0 +1,41 @@
+BEGIN:VCALENDAR
+PRODID:-//Google Inc//Google Calendar 70.9054//EN
+VERSION:2.0
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+X-WR-CALNAME:Ferias y mercados
+X-WR-TIMEZONE:Europe/Madrid
+BEGIN:VEVENT
+DTSTART;VALUE=DATE:20261024
+DTEND;VALUE=DATE:20261026
+DTSTAMP:20261008T204455Z
+UID:3p5hf51i30la0oli1gsta193e8@google.com
+CLASS:PUBLIC
+CREATED:20261008T153940Z
+DESCRIPTION:Inca Yokai Fest regresa con su segunda edición y este año abrim
+ os un portal directo a los mundos mágicos. ¡Nos vemos ahí! ¡Y con cosplay!
+LAST-MODIFIED:20261008T154112Z
+LOCATION:Inca\, 07300 Inca\, Illes Balears\, España
+SEQUENCE:0
+STATUS:CONFIRMED
+SUMMARY:Inca Yokai Fest
+TRANSP:TRANSPARENT
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20261018T160000Z
+DTEND:20261018T170000Z
+DTSTAMP:20261008T204455Z
+UID:0nu6aaedjlbdpdmrli4mc8kn2o@google.com
+CLASS:PUBLIC
+CREATED:20261008T155641Z
+DESCRIPTION:La <strong>Feria de Llucmajor</strong> es la <strong>feria de o
+ toño más grande de Mallorca</strong>\, con una historia que se remonta a 15
+ 46.
+LAST-MODIFIED:20261008T155641Z
+LOCATION:Llucmajor\, 07620 Llucmajor\, Illes Balears\, España
+SEQUENCE:0
+STATUS:CONFIRMED
+SUMMARY:Fira i firó de Llucmajor
+TRANSP:OPAQUE
+END:VEVENT
+END:VCALENDAR
