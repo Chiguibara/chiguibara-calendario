@@ -32,6 +32,53 @@ jobs:
           curl -fsS --retry 4 --retry-delay 20 --retry-all-errors "$ICS_URL" -o nuevo.ics
           grep -q 'BEGIN:VCALENDAR' nuevo.ics
 
+      - name: Quitar videollamadas
+        # Google añade solo un Google Meet a los eventos nuevos: su enlace (y el aviso «Más información sobre Meet»)
+        # acaba en la descripción y saldría en la web. Se quitan esas líneas y X-GOOGLE-CONFERENCE.
+        shell: python3 {0}
+        run: |
+          import re
+          MEET = re.compile(r'meet\.google\.com/|tel\.meet/|support\.google\.com/a/users/answer/9282720')
+          raw = open('nuevo.ics', encoding='utf-8', newline='').read()
+          # Líneas lógicas del ICS: las que empiezan por espacio o tabulador continúan la anterior.
+          fisicas = raw.split('\r\n')
+          logicas = []
+          for l in fisicas:
+              if l[:1] in (' ', '\t') and logicas:
+                  logicas[-1].append(l)
+              else:
+                  logicas.append([l])
+          def plegar(linea):
+              # RFC 5545: máximo 75 bytes por línea, sin partir caracteres UTF-8.
+              trozos, actual, limite = [], '', 75
+              for c in linea:
+                  if len((actual + c).encode()) > limite:
+                      trozos.append(actual)
+                      actual, limite = ' ', 75
+                  actual += c
+              return trozos + [actual]
+          salida, cambios = [], 0
+          for grupo in logicas:
+              linea = grupo[0] + ''.join(g[1:] for g in grupo[1:])
+              if linea.startswith('X-GOOGLE-CONFERENCE'):
+                  cambios += 1
+                  continue
+              if linea.startswith('DESCRIPTION') and MEET.search(linea):
+                  clave, valor = linea.split(':', 1)
+                  partes = [p for p in valor.split('\\n') if not MEET.search(p)]
+                  while partes and not partes[-1].strip():
+                      partes.pop()
+                  while partes and not partes[0].strip():
+                      partes.pop(0)
+                  cambios += 1
+                  if not partes:
+                      continue
+                  grupo = plegar(clave + ':' + '\\n'.join(partes))
+              salida.extend(grupo)
+          if cambios:
+              open('nuevo.ics', 'w', encoding='utf-8', newline='').write('\r\n'.join(salida))
+          print(f'Videollamadas quitadas: {cambios}')
+
       - name: ¿Ha cambiado?
         id: diff
         run: |
